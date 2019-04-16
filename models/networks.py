@@ -63,7 +63,7 @@ def init_weights(net, init_type='normal', init_gain=0.02):
     Parameters:
         net (network)   -- network to be initialized
         init_type (str) -- the name of an initialization method: normal | xavier | kaiming | orthogonal
-        init_gain (float)    -- scaling factor for normal, xavier and orthogonal.
+         (float)    -- scaling factor for normal, xavier and orthogonal.
 
     We use 'normal' in the original pix2pix and CycleGAN paper. But xavier and kaiming might
     work better for some applications. Feel free to try yourself.
@@ -147,6 +147,8 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
         net = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     elif netG == 'unet_256':
         net = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
+    elif netG == 'unet_zi2zi':
+        net = Zi2Zi_generator(input_nc, output_nc)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
@@ -184,7 +186,7 @@ def define_D(input_nc, ndf, netD, n_layers_D=3, norm='batch', init_type='normal'
     """
     net = None
     norm_layer = get_norm_layer(norm_type=norm)
-
+    # print('netD in define_D', netD)
     if netD == 'basic':  # default PatchGAN classifier
         net = NLayerDiscriminator(input_nc, ndf, n_layers=3, norm_layer=norm_layer)
     elif netD == 'n_layers':  # more options
@@ -546,7 +548,7 @@ class NLayerDiscriminator(nn.Module):
             use_bias = norm_layer.func != nn.BatchNorm2d
         else:
             use_bias = norm_layer != nn.BatchNorm2d
-
+        # print('n_layers in NL_D', n_layers)
         kw = 4
         padw = 1
         sequence = [nn.Conv2d(input_nc, ndf, kernel_size=kw, stride=2, padding=padw), nn.LeakyReLU(0.2, True)]
@@ -571,10 +573,20 @@ class NLayerDiscriminator(nn.Module):
 
         sequence += [nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)]  # output 1 channel prediction map
         self.model = nn.Sequential(*sequence)
+        # self.fc = nn.Linear(input_size)
+        # print('1111111111111111111111')
 
     def forward(self, input):
         """Standard forward."""
-        return self.model(input)
+        print('dis_run_start', input.size())
+        output1 = self.model(input)
+        t = output1.view(output1.size(0),-1)
+        input_size = t.size(1)
+        print('input_size', input_size, t.type(), output1.type())
+        fc = nn.Linear(input_size, 1).cuda() 
+        output2 = fc(t)
+        print('dis_run_finish', output2.type())
+        return (output1, output2.view(-1))
 
 
 class PixelDiscriminator(nn.Module):
@@ -607,3 +619,139 @@ class PixelDiscriminator(nn.Module):
     def forward(self, input):
         """Standard forward."""
         return self.net(input)
+
+
+class Zi2Zi_encoder(nn.Module):
+    def __init__(self, input_nc, ngf=64):
+        super(Zi2Zi_encoder, self).__init__()
+        self.generator_dim = ngf
+        self.layer_result = dict()
+        
+        self.encoder = nn.Sequential(
+            nn.Conv2d(input_nc, self.generator_dim, kernel_size = 4, stride = 2, padding = 1),
+            self.encoder_layer(self.generator_dim, self.generator_dim * 2),
+            self.encoder_layer(self.generator_dim * 2, self.generator_dim * 4),
+            self.encoder_layer(self.generator_dim * 4, self.generator_dim * 8),
+            self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
+            self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
+            self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
+            self.last_layer(self.generator_dim * 8, self.generator_dim * 8),
+        )
+
+    def last_layer(self, input_nc, output_nc):
+        encoder_layer = nn.Sequential(
+            nn.ReLU(),
+            nn.Conv2d(input_nc, output_nc, kernel_size = 4, stride = 2, padding = 1),
+        )
+        return encoder_layer
+
+    def encoder_layer(self, input_nc, output_nc):
+        encoder_layer = nn.Sequential(
+            nn.ReLU(),
+            nn.Conv2d(input_nc, output_nc, kernel_size = 4, stride = 2, padding = 1),
+            nn.BatchNorm2d(output_nc)
+        )
+        return encoder_layer
+
+    def forward(self, image):
+        print('encoder_forward')
+        enc = image
+        for i, layer in enumerate(self.encoder):
+            enc = layer(enc)
+            self.layer_result["e%d" % (i+1)] = enc
+        print('encoder_finish')
+        return enc, self.layer_result
+
+
+class Zi2Zi_decoder(nn.Module):
+    def __init__(self, output_nc, ngf=64):
+        super(Zi2Zi_decoder, self).__init__()
+        s = 256
+        self.generator_dim = ngf
+        s2, s4, s8, s16, s32, s64, s128 = int(s / 2), int(s / 4), int(s / 8), int(s / 16), int(s / 32), int(s / 64), int(s / 128)
+        self.linear_layer = nn.Linear(640,512)
+        self.decoder = nn.Sequential(
+            self.decoder_layer(s128, self.generator_dim * 8, self.generator_dim * 8),
+            self.decoder_layer(s64, self.generator_dim * 16, self.generator_dim * 8),
+            self.decoder_layer(s32, self.generator_dim * 16, self.generator_dim * 8),
+            self.decoder_layer(s16, self.generator_dim * 16, self.generator_dim * 8),
+            self.decoder_layer(s8, self.generator_dim * 16, self.generator_dim * 4),
+            self.decoder_layer(s4, self.generator_dim * 8, self.generator_dim * 2),
+            self.decoder_layer(s2, self.generator_dim * 4, self.generator_dim),
+            self.decoder_layer(s, self.generator_dim * 2, output_nc),
+        )
+
+
+    def decoder_layer(self, output_width, input_nc, output_nc, dropout=False):
+        decoder_layer = nn.Sequential(
+            nn.ReLU(),
+            nn.ConvTranspose2d(input_nc, output_nc, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(output_nc)
+        )
+        if dropout:
+            decoder_layer = nn.Sequential(
+                decoder_layer,
+                nn.Dropout2d(0.5)
+            )
+        return decoder_layer
+
+
+    def forward(self, encoded_vector, enc_layer_results):
+        print('decoder_forward')
+        print(encoded_vector.size())
+        print('ABC')
+        self.linear_layer(encoded_vector)
+        dec = self.linear_layer(encoded_vector)
+        print('123')
+        dec = dec[:,:,None,None]
+        i = 7
+        for layer in self.decoder:
+            dec = layer(dec)
+            if i != 0:
+                print(dec.size(), enc_layer_results["e%d" % i].size())
+                dec = torch.cat((dec, enc_layer_results["e%d" % i]),1)
+                i = i-1
+            print(dec.size())
+        print('decoder_finished')
+        return torch.tanh(dec)
+
+
+class Zi2Zi_generator(nn.Module):
+    def __init__(self, input_nc=3, output_nc=3):
+        super(Zi2Zi_generator, self).__init__()
+        self.encoder = Zi2Zi_encoder(input_nc, ngf=64)
+        self.decoder = Zi2Zi_decoder(output_nc, ngf=64)
+        self.embedding_layer = init_embedding(2, 128)
+        self.embedding_layer.weight.require_grad = False
+
+    def forward(self, images, embedding_ids):
+        print('generator_forward')
+        e8, enc_layers = self.encoder.forward(images)
+        print('embedding_ids', embedding_ids.type())
+        ind = embedding_ids
+        print('embedding_layer', self.embedding_layer)
+        local_embeddings = self.embedding_layer(ind.type(torch.cuda.LongTensor))
+        # print('local_embeddings', local_embeddings.shape, type(local_embeddings), local_embeddings.is_cuda)
+        local_embeddings = local_embeddings[:, :, None, None] # HardCoding 2 new dimensions instead of view
+        # local_embeddings = local_embeddings.view(-1, local_embeddings.size(-1), 1, 1)
+        # print('123')
+        # print(embedding_ids.size())
+        # print(234,456,678)
+        # print('qwe', 'wqqwdw')
+        # print(images.size())
+        # print(local_embeddings.size())
+        # print(type(ind))
+        # print(ind.size())
+        # print(ind)
+        print(local_embeddings.shape)
+        embedded = torch.cat((e8, local_embeddings), 1)
+        embedded = embedded.view(embedded.size(0),-1)
+        # print(embedded.is_cuda, embedded.is_cuda)
+        output = self.decoder.forward(embedded, enc_layers)
+        print('generator_finished')
+        return output
+        
+def init_embedding(embedding_num, embedding_dim):
+    weight = torch.randn(embedding_num, embedding_dim)
+    embeddings = nn.Embedding.from_pretrained(weight)    
+    return embeddings
