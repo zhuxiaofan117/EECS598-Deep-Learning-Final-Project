@@ -64,11 +64,11 @@ class Zi2ZiModel(BaseModel):
 
 
         if self.isTrain:
-            print(torch.randn(2).to(self.device).type())
+            # print(torch.randn(2).to(self.device).type())
             # define loss functions
             self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)
-            self.criterionBCE = nn.BCEWithLogitsLoss()
-            self.criterionL1 = torch.nn.L1Loss()
+            self.criterionBCE = nn.BCEWithLogitsLoss().to(self.device)
+            self.criterionL1 = torch.nn.L1Loss().to(self.device)
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
             self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizer_D = torch.optim.Adam(self.netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
@@ -89,24 +89,25 @@ class Zi2ZiModel(BaseModel):
         self.real_A = input['A' if AtoB else 'B'].to(self.device)
         self.real_B = input['B' if AtoB else 'A'].to(self.device)
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
-        self.labels = input['labels'].type(torch.FloatTensor).to(self.device)
+        self.labels = input['labels'].to(self.device)
+        self.loss_labels = input['labels'].type(torch.FloatTensor).to(self.device)
         # print(self.real_A.type(), self.labels.type(), input['labels'].type())
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
-        print('forward_G', self.real_A.size())
+        # print('forward_G', self.real_A.size(), self.labels)
         self.fake_B = self.netG(self.real_A, self.labels)  # G(A)
 
     def backward_D(self):
         """Calculate GAN loss for the discriminator"""
         # Fake; stop backprop to the generator by detaching fake_B
-        print('backward_D')
+        # print('backward_D')
         fake_AB = torch.cat((self.real_A, self.fake_B), 1)  # we use conditional GANs; we need to feed both input and output to the discriminator
-        print('fake_AB', fake_AB.size())
+        # print('fake_AB', fake_AB.size())
         pred_fake,  pred_category = self.netD(fake_AB.detach())
         self.loss_D_fake = self.criterionGAN(pred_fake, False)
-        print(self.labels.type(), pred_category.type())
-        self.loss_category = self.criterionBCE(pred_category, self.labels)
+        # print(self.labels.type(), pred_category.type())
+        self.loss_category = self.criterionBCE(pred_category, self.loss_labels)
         # Real
         real_AB = torch.cat((self.real_A, self.real_B), 1)
         pred_real,_ = self.netD(real_AB)
@@ -114,21 +115,21 @@ class Zi2ZiModel(BaseModel):
         # combine loss and calculate gradients
         self.loss_D = (self.loss_D_fake + self.loss_D_real) * 0.5 + self.loss_category
         self.loss_D.backward()
-        print('backward_D finished')
+        # print('backward_D finished')
 
     def backward_G(self):
         """Calculate GAN and L1 loss for the generator"""
         # First, G(A) should fake the discriminator
-        print('backward_G')
+        # print('backward_G')
         fake_AB = torch.cat((self.real_A, self.fake_B), 1)
         pred_fake, pred_category  = self.netD(fake_AB)
-        self.loss_G_GAN = self.criterionGAN(pred_fake, True) + self.criterionBCE(pred_category, self.labels)
+        self.loss_G_GAN = self.criterionGAN(pred_fake, True) + self.criterionBCE(pred_category, self.loss_labels)
         # Second, G(A) = B
         self.loss_G_L1 = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_L1
         # combine loss and calculate gradients
         self.loss_G = self.loss_G_GAN + self.loss_G_L1
         self.loss_G.backward()
-        print('backward_G finished')
+        # print('backward_G finished')
 
     def optimize_parameters(self):
         self.forward()                   # compute fake images: G(A)
@@ -142,4 +143,4 @@ class Zi2ZiModel(BaseModel):
         self.optimizer_G.zero_grad()        # set G's gradients to zero
         self.backward_G()                   # calculate graidents for G
         self.optimizer_G.step()             # udpate G's weights
-        print('*****1 iteration finished******')
+        # print('*****1 iteration finished******')

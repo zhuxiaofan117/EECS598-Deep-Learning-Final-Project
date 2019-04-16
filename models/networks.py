@@ -186,7 +186,6 @@ def define_D(input_nc, ndf, netD, n_layers_D=3, norm='batch', init_type='normal'
     """
     net = None
     norm_layer = get_norm_layer(norm_type=norm)
-    # print('netD in define_D', netD)
     if netD == 'basic':  # default PatchGAN classifier
         net = NLayerDiscriminator(input_nc, ndf, n_layers=3, norm_layer=norm_layer)
     elif netD == 'n_layers':  # more options
@@ -548,7 +547,6 @@ class NLayerDiscriminator(nn.Module):
             use_bias = norm_layer.func != nn.BatchNorm2d
         else:
             use_bias = norm_layer != nn.BatchNorm2d
-        # print('n_layers in NL_D', n_layers)
         kw = 4
         padw = 1
         sequence = [nn.Conv2d(input_nc, ndf, kernel_size=kw, stride=2, padding=padw), nn.LeakyReLU(0.2, True)]
@@ -573,19 +571,14 @@ class NLayerDiscriminator(nn.Module):
 
         sequence += [nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)]  # output 1 channel prediction map
         self.model = nn.Sequential(*sequence)
-        # self.fc = nn.Linear(input_size)
-        # print('1111111111111111111111')
+        self.fc = nn.Linear(900, 1)
 
     def forward(self, input):
         """Standard forward."""
-        print('dis_run_start', input.size())
         output1 = self.model(input)
         t = output1.view(output1.size(0),-1)
         input_size = t.size(1)
-        print('input_size', input_size, t.type(), output1.type())
-        fc = nn.Linear(input_size, 1).cuda() 
-        output2 = fc(t)
-        print('dis_run_finish', output2.type())
+        output2 = self.fc(t)
         return (output1, output2.view(-1))
 
 
@@ -654,12 +647,10 @@ class Zi2Zi_encoder(nn.Module):
         return encoder_layer
 
     def forward(self, image):
-        print('encoder_forward')
         enc = image
         for i, layer in enumerate(self.encoder):
             enc = layer(enc)
             self.layer_result["e%d" % (i+1)] = enc
-        print('encoder_finish')
         return enc, self.layer_result
 
 
@@ -697,22 +688,17 @@ class Zi2Zi_decoder(nn.Module):
 
 
     def forward(self, encoded_vector, enc_layer_results):
-        print('decoder_forward')
-        print(encoded_vector.size())
-        print('ABC')
+        # print('decoder_forward')
         self.linear_layer(encoded_vector)
         dec = self.linear_layer(encoded_vector)
-        print('123')
         dec = dec[:,:,None,None]
         i = 7
         for layer in self.decoder:
             dec = layer(dec)
             if i != 0:
-                print(dec.size(), enc_layer_results["e%d" % i].size())
                 dec = torch.cat((dec, enc_layer_results["e%d" % i]),1)
                 i = i-1
-            print(dec.size())
-        print('decoder_finished')
+        # print('decoder_finished')
         return torch.tanh(dec)
 
 
@@ -725,30 +711,14 @@ class Zi2Zi_generator(nn.Module):
         self.embedding_layer.weight.require_grad = False
 
     def forward(self, images, embedding_ids):
-        print('generator_forward')
+        # print('generator_forward')
         e8, enc_layers = self.encoder.forward(images)
-        print('embedding_ids', embedding_ids.type())
-        ind = embedding_ids
-        print('embedding_layer', self.embedding_layer)
-        local_embeddings = self.embedding_layer(ind.type(torch.cuda.LongTensor))
-        # print('local_embeddings', local_embeddings.shape, type(local_embeddings), local_embeddings.is_cuda)
+        local_embeddings = self.embedding_layer(embedding_ids)
         local_embeddings = local_embeddings[:, :, None, None] # HardCoding 2 new dimensions instead of view
-        # local_embeddings = local_embeddings.view(-1, local_embeddings.size(-1), 1, 1)
-        # print('123')
-        # print(embedding_ids.size())
-        # print(234,456,678)
-        # print('qwe', 'wqqwdw')
-        # print(images.size())
-        # print(local_embeddings.size())
-        # print(type(ind))
-        # print(ind.size())
-        # print(ind)
-        print(local_embeddings.shape)
         embedded = torch.cat((e8, local_embeddings), 1)
         embedded = embedded.view(embedded.size(0),-1)
-        # print(embedded.is_cuda, embedded.is_cuda)
         output = self.decoder.forward(embedded, enc_layers)
-        print('generator_finished')
+        # print('generator_finished')
         return output
         
 def init_embedding(embedding_num, embedding_dim):
