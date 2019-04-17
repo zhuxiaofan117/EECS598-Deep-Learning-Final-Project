@@ -102,7 +102,8 @@ class Zi2ZiRandomModel(BaseModel):
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
         # print('forward_G', self.real_A.size(), self.labels)
-        self.fake_B, self.z = self.netG(self.real_A, self.labels)  # G(A)
+        self.z = torch.randn(1,64).to(self.device)
+        self.fake_B = self.netG(self.real_A, self.labels, self.z)  # G(A)
         
 
     def encode(self, input_image):
