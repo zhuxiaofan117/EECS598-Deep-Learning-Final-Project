@@ -46,7 +46,7 @@ class Zi2ZiRandomModel(BaseModel):
         """
         BaseModel.__init__(self, opt)
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
-        self.loss_names = ['G_GAN', 'G_L1', 'D_real', 'D_fake', 'category', 'random']
+        self.loss_names = ['G_GAN', 'G_L1', 'D_real', 'D_fake', 'category', 'E']
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         self.visual_names = ['real_A', 'fake_B', 'real_B']
         # specify the models you want to save to the disk. The training/test scripts will call <BaseModel.save_networks> and <BaseModel.load_networks>
@@ -109,7 +109,7 @@ class Zi2ZiRandomModel(BaseModel):
     def encode(self, input_image):
         mu, logvar = self.netE.forward(input_image)
         std = logvar.mul(0.5).exp_()
-        eps = torch.randn(std.size(0), std.size(1))
+        eps = torch.randn(std.size(0), std.size(1)).to(self.device)
         z = eps.mul(std).add_(mu)
         return z, mu, logvar
 
