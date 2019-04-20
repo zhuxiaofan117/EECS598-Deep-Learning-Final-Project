@@ -196,11 +196,6 @@ def define_D(input_nc, ndf, netD, n_layers_D=3, norm='batch', init_type='normal'
         raise NotImplementedError('Discriminator model name [%s] is not recognized' % net)
     return init_net(net, init_type, init_gain, gpu_ids)
 
-def define_E(input_nc, ndf, init_type='normal', init_gain=0.02, gpu_ids=[]):
-    netE = Encoder(input_nc, ndf)
-    return init_net(netE, init_type, init_gain, gpu_ids)
-
-
 
 ##############################################################################
 # Classes
@@ -712,9 +707,9 @@ class Zi2Zi_generator(nn.Module):
         super(Zi2Zi_generator, self).__init__()
         self.encoder = Zi2Zi_encoder(input_nc, ngf=64)
         self.decoder = Zi2Zi_decoder(output_nc, ngf=64)
-        self.embedding_layer = init_embedding(2, 64)
+        self.embedding_layer = init_embedding(2, 128)
         self.embedding_layer.weight.require_grad = False
-        
+
     def forward(self, images, embedding_ids):
         # print('generator_forward')
         e8, enc_layers = self.encoder.forward(images)
@@ -722,55 +717,11 @@ class Zi2Zi_generator(nn.Module):
         local_embeddings = local_embeddings[:, :, None, None] # HardCoding 2 new dimensions instead of view
         embedded = torch.cat((e8, local_embeddings), 1)
         embedded = embedded.view(embedded.size(0),-1)
-        z = torch.randn(1,64)
-        embedded = torch.cat((embedded, z), 1)
         output = self.decoder.forward(embedded, enc_layers)
         # print('generator_finished')
-        return output, z
-
+        return output
 
 def init_embedding(embedding_num, embedding_dim):
     weight = torch.randn(embedding_num, embedding_dim)
     embeddings = nn.Embedding.from_pretrained(weight)
     return embeddings
-
-
-class Encoder(nn.Module):
-    def __init__(self, input_nc, ngf=64):
-        super(Encoder, self).__init__()
-        self.generator_dim = ngf
-        
-        self.encoder = nn.Sequential(
-            nn.Conv2d(input_nc, self.generator_dim, kernel_size = 4, stride = 2, padding = 1),
-            self.encoder_layer(self.generator_dim, self.generator_dim * 2),
-            self.encoder_layer(self.generator_dim * 2, self.generator_dim * 4),
-            self.encoder_layer(self.generator_dim * 4, self.generator_dim * 8),
-            self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
-            self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
-            self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
-            self.last_layer(self.generator_dim * 8, self.generator_dim * 8),
-        )
-
-    def last_layer(self, input_nc, output_nc):
-        encoder_layer = nn.Sequential(
-            nn.ReLU(),
-            nn.Conv2d(input_nc, output_nc, kernel_size = 4, stride = 2, padding = 1),
-        )
-        return encoder_layer
-
-    def encoder_layer(self, input_nc, output_nc):
-        encoder_layer = nn.Sequential(
-            nn.ReLU(),
-            nn.Conv2d(input_nc, output_nc, kernel_size = 4, stride = 2, padding = 1),
-            nn.BatchNorm2d(output_nc)
-        )
-        return encoder_layer
-
-    def forward(self, image):
-        output = self.encoder(image)
-        output = output.view(output.size(0), -1)
-        mu = nn.Linear(output.size(1), 64)
-        logvar = nn.Linear(output.size(1), 64)
-        return mu, logvar
-
-
