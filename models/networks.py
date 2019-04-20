@@ -716,17 +716,18 @@ class Zi2Zi_generator(nn.Module):
         self.embedding_layer = init_embedding(2, 64)
         self.embedding_layer.weight.require_grad = False
         
-    def forward(self, images, embedding_ids, z):
+    def forward(self, images, embedding_ids):
         # print('generator_forward')
         e8, enc_layers = self.encoder.forward(images)
         local_embeddings = self.embedding_layer(embedding_ids)
         local_embeddings = local_embeddings[:, :, None, None] # HardCoding 2 new dimensions instead of view
         embedded = torch.cat((e8, local_embeddings), 1)
         embedded = embedded.view(embedded.size(0),-1)
+        z = torch.randn(1,64)
         embedded = torch.cat((embedded, z), 1)
         output = self.decoder.forward(embedded, enc_layers)
         # print('generator_finished')
-        return output
+        return output, z
 
 
 def init_embedding(embedding_num, embedding_dim):
