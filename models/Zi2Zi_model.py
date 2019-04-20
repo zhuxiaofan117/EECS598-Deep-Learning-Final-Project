@@ -3,7 +3,7 @@ from .base_model import BaseModel
 from . import networks
 import torch.nn as nn
 
-class Zi2ZiRandomModel(BaseModel):
+class Zi2ZiModel(BaseModel):
     """ This class implements the pix2pix model, for learning a mapping from input images to output images given paired data.
 
     The model training requires '--dataset_mode aligned' dataset.
@@ -143,11 +143,10 @@ class Zi2ZiRandomModel(BaseModel):
         self.loss_G_L1 = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_L1
         # combine loss and calculate gradients
         self.loss_G = self.loss_G_GAN + self.loss_G_L1
-        self.loss_G.backward(retain_graph=True)
+        self.loss_G.backward()
         # print('backward_G finished')
 
     def backward_E(self):
-        # print('backward_E')
         z, mu, logvar = self.encode(self.fake_B)
         self.loss_E = self.criterionL1(self.z, z) * self.opt.lambda_random
         self.loss_E.backward()

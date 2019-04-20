@@ -653,7 +653,6 @@ class Zi2Zi_encoder(nn.Module):
 
     def forward(self, image):
         enc = image
-        # print('encoder_forward')
         for i, layer in enumerate(self.encoder):
             enc = layer(enc)
             self.layer_result["e%d" % (i+1)] = enc
@@ -751,7 +750,6 @@ class Encoder(nn.Module):
             self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
             self.last_layer(self.generator_dim * 8, self.generator_dim * 8),
         )
-        self.linear = nn.Linear(512, 64)
 
     def last_layer(self, input_nc, output_nc):
         encoder_layer = nn.Sequential(
@@ -771,8 +769,8 @@ class Encoder(nn.Module):
     def forward(self, image):
         output = self.encoder(image)
         output = output.view(output.size(0), -1)
-        mu = self.linear(output)
-        logvar = self.linear(output)
+        mu = nn.Linear(output.size(1), 64)
+        logvar = nn.Linear(output.size(1), 64)
         return mu, logvar
 
 
