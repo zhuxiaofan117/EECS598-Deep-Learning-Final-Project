@@ -571,7 +571,7 @@ class NLayerDiscriminator(nn.Module):
 
         sequence += [nn.Conv2d(ndf * nf_mult, 1, kernel_size=kw, stride=1, padding=padw)]  # output 1 channel prediction map
         self.model = nn.Sequential(*sequence)
-        self.fc = nn.Linear(900, 1) # hardcoded input size
+        self.fc = nn.Linear(900, 1)
 
     def forward(self, input):
         """Standard forward."""
@@ -660,7 +660,7 @@ class Zi2Zi_decoder(nn.Module):
         s = 256
         self.generator_dim = ngf
         s2, s4, s8, s16, s32, s64, s128 = int(s / 2), int(s / 4), int(s / 8), int(s / 16), int(s / 32), int(s / 64), int(s / 128)
-        self.linear_layer = nn.Linear(640,512) # hardcode a vector with 512+128 to 512
+        self.linear_layer = nn.Linear(640,512)
         self.decoder = nn.Sequential(
             self.decoder_layer(s128, self.generator_dim * 8, self.generator_dim * 8),
             self.decoder_layer(s64, self.generator_dim * 16, self.generator_dim * 8),
@@ -720,8 +720,8 @@ class Zi2Zi_generator(nn.Module):
         output = self.decoder.forward(embedded, enc_layers)
         # print('generator_finished')
         return output
-
+        
 def init_embedding(embedding_num, embedding_dim):
     weight = torch.randn(embedding_num, embedding_dim)
-    embeddings = nn.Embedding.from_pretrained(weight)
+    embeddings = nn.Embedding.from_pretrained(weight)    
     return embeddings
