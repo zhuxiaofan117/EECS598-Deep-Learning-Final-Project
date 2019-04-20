@@ -17,7 +17,8 @@ def make_dataset(dir, max_dataset_size=float("inf")):
     labels = []
     images = []
     assert os.path.isdir(dir), '%s is not a valid directory' % dir
-    i = -2
+
+    i = -1
     for root, subdir, fnames in sorted(os.walk(dir)):
         i += 1
         for fname in fnames:
@@ -25,6 +26,7 @@ def make_dataset(dir, max_dataset_size=float("inf")):
                 path = os.path.join(root, fname)
                 images.append(path)
                 labels.append(i)
+    print(type(labels[0]))
     return (images[:min(max_dataset_size, len(images))], labels[:min(max_dataset_size, len(images))])
 
 
