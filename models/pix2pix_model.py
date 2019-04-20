@@ -33,6 +33,10 @@ class Pix2PixModel(BaseModel):
         if is_train:
             parser.set_defaults(pool_size=0, gan_mode='vanilla')
             parser.add_argument('--lambda_L1', type=float, default=100.0, help='weight for L1 loss')
+            parser.add_argument('--lambda_L2', type=float, default=0, help='weight for L2 loss')
+            parser.add_argument('--lambda_SL1', type=float, default=0, help='weight for SL1 loss')
+            parser.add_argument('--lambda_tv', type=float, default=0, help='weight for tv loss')
+            parser.add_argument('--lambda_style', type=float, default=0, help='weight for style loss')
 
         return parser
 
@@ -64,11 +68,59 @@ class Pix2PixModel(BaseModel):
             # define loss functions
             self.criterionGAN = networks.GANLoss(opt.gan_mode).to(self.device)
             self.criterionL1 = torch.nn.L1Loss()
+            self.criterionL2 = torch.nn.MSELoss()
+            self.criterionSL1 = torch.nn.SmoothL1Loss()
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
             self.optimizer_G = torch.optim.Adam(self.netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizer_D = torch.optim.Adam(self.netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
+
+    def tv_loss(self, img):
+        """
+        Compute total variation loss.
+        
+        Inputs:
+        - img: PyTorch Variable of shape (1, 3, H, W) holding an input image.
+        - tv_weight: Scalar giving the weight w_t to use for the TV loss.
+        
+        Returns:
+        - loss: PyTorch Variable holding a scalar giving the total variation loss
+        for img weighted by tv_weight.
+        """
+        # Your implementation should be vectorized and not require any loops!
+        horizon_v = torch.sum(torch.pow(img[:,:,:,1:] - img[:,:,:,:-1],2))
+        vertical_v = torch.sum(torch.pow(img[:,:,1:,:] - img[:,:,:-1,:],2))
+        loss = horizon_v + vertical_v
+        return loss
+
+    def gram_matrix(self, features, normalize=True):
+        """
+        Compute the Gram matrix from features.
+        
+        Inputs:
+        - features: PyTorch Variable of shape (N, C, H, W) giving features for
+        a batch of N images.
+        - normalize: optional, whether to normalize the Gram matrix
+            If True, divide the Gram matrix by the number of neurons (H * W * C)
+        
+        Returns:
+        - gram: PyTorch Variable of shape (N, C, C) giving the
+        (optionally normalized) Gram matrices for the N input images.
+        """
+        N, C, H, W = features.shape
+        G = features[..., None] * features[..., None].permute(0, 4, 2, 3, 1)
+        G = G.sum(dim=[2, 3])
+        if normalize:
+            return G / (H * W * C)
+        else:
+            return G
+
+    def style_loss(self, img1, img2):
+        gram1 = self.gram_matrix(img1)
+        gram2 = self.gram_matrix(img2)
+        style_loss= torch.sum(torch.pow(gram1 - gram2, 2))
+        return style_loss
 
     def set_input(self, input):
         """Unpack input data from the dataloader and perform necessary pre-processing steps.
@@ -107,10 +159,17 @@ class Pix2PixModel(BaseModel):
         fake_AB = torch.cat((self.real_A, self.fake_B), 1)
         pred_fake = self.netD(fake_AB)
         self.loss_G_GAN = self.criterionGAN(pred_fake, True)
+
         # Second, G(A) = B
         self.loss_G_L1 = self.criterionL1(self.fake_B, self.real_B) * self.opt.lambda_L1
+        self.loss_G_L2 = self.criterionL2(self.fake_B, self.real_B) * self.opt.lambda_L2
+        self.loss_G_SL1 = self.criterionSL1(self.fake_B, self.real_B) * self.opt.lambda_SL1
+        self.loss_tv = self.tv_loss(self.fake_B) * self.opt.lambda_tv
+        self.loss_style = self.style_loss(self.fake_B, self.real_B) * self.opt.lambda_style
+
         # combine loss and calculate gradients
-        self.loss_G = self.loss_G_GAN + self.loss_G_L1
+        self.loss_G = self.loss_G_GAN + self.loss_G_L1 + self.loss_G_L2 + self.loss_G_SL1 + self.loss_tv + self.loss_style
+
         self.loss_G.backward()
 
     def optimize_parameters(self):
