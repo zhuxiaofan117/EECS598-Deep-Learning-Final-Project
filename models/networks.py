@@ -149,6 +149,8 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
         net = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     elif netG == 'unet_zi2zi':
         net = Zi2Zi_generator(input_nc, output_nc)
+    elif netG == 'unet_zi2zi_random':
+        net = Zi2ZiRandom_generator(input_nc, output_nc)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
@@ -725,3 +727,64 @@ def init_embedding(embedding_num, embedding_dim):
     weight = torch.randn(embedding_num, embedding_dim)
     embeddings = nn.Embedding.from_pretrained(weight)
     return embeddings
+
+
+class Zi2ZiRandom_generator(nn.Module):
+    def __init__(self, input_nc=3, output_nc=3):
+        super(Zi2ZiRandom_generator, self).__init__()
+        self.encoder = Zi2Zi_encoder(input_nc, ngf=64)
+        self.decoder = Zi2Zi_decoder(output_nc, ngf=64)
+        self.embedding_layer = init_embedding(2, 64)
+        self.embedding_layer.weight.require_grad = False
+        
+    def forward(self, images, embedding_ids, z):
+        # print('generator_forward')
+        e8, enc_layers = self.encoder.forward(images)
+        local_embeddings = self.embedding_layer(embedding_ids)
+        local_embeddings = local_embeddings[:, :, None, None] # HardCoding 2 new dimensions instead of view
+        embedded = torch.cat((e8, local_embeddings), 1)
+        embedded = embedded.view(embedded.size(0),-1)
+        embedded = torch.cat((embedded, z), 1)
+        output = self.decoder.forward(embedded, enc_layers)
+        # print('generator_finished')
+        return output
+
+
+class Encoder(nn.Module):
+    def __init__(self, input_nc, ngf=64):
+        super(Encoder, self).__init__()
+        self.generator_dim = ngf
+        
+        self.encoder = nn.Sequential(
+            nn.Conv2d(input_nc, self.generator_dim, kernel_size = 4, stride = 2, padding = 1),
+            self.encoder_layer(self.generator_dim, self.generator_dim * 2),
+            self.encoder_layer(self.generator_dim * 2, self.generator_dim * 4),
+            self.encoder_layer(self.generator_dim * 4, self.generator_dim * 8),
+            self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
+            self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
+            self.encoder_layer(self.generator_dim * 8, self.generator_dim * 8),
+            self.last_layer(self.generator_dim * 8, self.generator_dim * 8),
+        )
+        self.linear = nn.Linear(512, 64)
+
+    def last_layer(self, input_nc, output_nc):
+        encoder_layer = nn.Sequential(
+            nn.ReLU(),
+            nn.Conv2d(input_nc, output_nc, kernel_size = 4, stride = 2, padding = 1),
+        )
+        return encoder_layer
+
+    def encoder_layer(self, input_nc, output_nc):
+        encoder_layer = nn.Sequential(
+            nn.ReLU(),
+            nn.Conv2d(input_nc, output_nc, kernel_size = 4, stride = 2, padding = 1),
+            nn.BatchNorm2d(output_nc)
+        )
+        return encoder_layer
+
+    def forward(self, image):
+        output = self.encoder(image)
+        output = output.view(output.size(0), -1)
+        mu = self.linear(output)
+        logvar = self.linear(output)
+        return mu, logvar
