@@ -146,10 +146,10 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
         net = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
     elif netG == 'unet_256':
         net = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
-    elif netG == 'unet_zi2zi':
-        net = Zi2Zi_generator(input_nc, output_nc)
-    elif netG == 'unet_zi2zi_random':
-        net = Zi2ZiRandom_generator(input_nc, output_nc)
+    elif netG == 'unet_Ske2Ink':
+        net = Ske2Ink_generator(input_nc, output_nc)
+    elif netG == 'unet_Ske2Ink_random':
+        net = Ske2InkRandom_generator(input_nc, output_nc)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
@@ -619,9 +619,9 @@ class PixelDiscriminator(nn.Module):
         return self.net(input)
 
 
-class Zi2Zi_encoder(nn.Module):
+class Ske2Ink_encoder(nn.Module):
     def __init__(self, input_nc, ngf=64):
-        super(Zi2Zi_encoder, self).__init__()
+        super(Ske2Ink_encoder, self).__init__()
         self.generator_dim = ngf
         self.layer_result = dict()
 
@@ -659,9 +659,9 @@ class Zi2Zi_encoder(nn.Module):
         return enc, self.layer_result
 
 
-class Zi2Zi_decoder(nn.Module):
+class Ske2Ink_decoder(nn.Module):
     def __init__(self, output_nc, ngf=64):
-        super(Zi2Zi_decoder, self).__init__()
+        super(Ske2Ink_decoder, self).__init__()
         s = 256
         self.generator_dim = ngf
         s2, s4, s8, s16, s32, s64, s128 = int(s / 2), int(s / 4), int(s / 8), int(s / 16), int(s / 32), int(s / 64), int(s / 128)
@@ -705,11 +705,11 @@ class Zi2Zi_decoder(nn.Module):
         return torch.tanh(dec)
 
 
-class Zi2Zi_generator(nn.Module):
+class Ske2Ink_generator(nn.Module):
     def __init__(self, input_nc=3, output_nc=3):
-        super(Zi2Zi_generator, self).__init__()
-        self.encoder = Zi2Zi_encoder(input_nc, ngf=64)
-        self.decoder = Zi2Zi_decoder(output_nc, ngf=64)
+        super(Ske2Ink_generator, self).__init__()
+        self.encoder = Ske2Ink_encoder(input_nc, ngf=64)
+        self.decoder = Ske2Ink_decoder(output_nc, ngf=64)
         self.embedding_layer = init_embedding(2, 128)
         self.embedding_layer.weight.require_grad = False
 
@@ -728,11 +728,11 @@ def init_embedding(embedding_num, embedding_dim):
     return embeddings
 
 
-class Zi2ZiRandom_generator(nn.Module):
+class Ske2InkRandom_generator(nn.Module):
     def __init__(self, input_nc=3, output_nc=3):
-        super(Zi2ZiRandom_generator, self).__init__()
-        self.encoder = Zi2Zi_encoder(input_nc, ngf=64)
-        self.decoder = Zi2Zi_decoder(output_nc, ngf=64)
+        super(Ske2InkRandom_generator, self).__init__()
+        self.encoder = Ske2Ink_encoder(input_nc, ngf=64)
+        self.decoder = Ske2Ink_decoder(output_nc, ngf=64)
         self.embedding_layer = init_embedding(2, 64)
         self.embedding_layer.weight.require_grad = False
 
