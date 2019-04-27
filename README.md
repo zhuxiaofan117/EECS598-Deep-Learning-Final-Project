@@ -1,4 +1,4 @@
-#Generating Chinese Ancient Ink Painting from Sketch Using Conditional GANs
+# Generating Chinese Ancient Ink Painting from Sketch Using Conditional GANs
 
 A course project of W19 EECS598-012 Deep Learning of Team 03
 
