@@ -13,10 +13,15 @@ $ python train.py --dataroot ./datasets/flower_paint/ --name pix2pix_L1 --model 
 ```
 
 --dataroot: for datasets
+
 --name: for name of train senarios
+
 --model: for name of the model
+
 --direction: for meaning A is ground truth, B is sketch image
+
 --display_id: for disabling visdom
+
 --gpu_ids: -1 for using CPU, delete this if using GPU
 
 ### To test the model, use the following command
@@ -38,8 +43,11 @@ $ python train.py --dataroot ./datasets/flower_paint/ --name pix2pix_L2 --model 
 We explored following loss metrics
 #### Loss metrics
 --lambda_L1: L1 loss weight, default 100
+
 --lambda_L2: L2 loss weight, default 0
+
 --lambda_SL1: SL1 loss weight, default 0
+
 --lambda_style: Style loss weight, default 0
 
 ### Image to image translation with category embeddings
@@ -61,4 +69,5 @@ $ python train.py --dataroot ./datasets/flower_mountain/ --name Ske2Ink_Random -
 
 #### Loss metrics
 --lambda_category: weight for category loss
+
 --lambda_random: weight for random vector loss
