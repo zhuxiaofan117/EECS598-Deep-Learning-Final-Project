@@ -63,9 +63,6 @@ class Zi2ZiRandomModel(BaseModel):
             self.netD = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf, opt.netD,
                                           opt.n_layers_D, opt.norm, opt.init_type, opt.init_gain, self.gpu_ids)
             self.netE = networks.define_E(opt.input_nc, opt.ndf, opt.init_type, opt.init_gain, self.gpu_ids)
-            
-
-
 
         if self.isTrain:
             # print(torch.randn(2).to(self.device).type())

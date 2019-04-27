@@ -87,7 +87,6 @@ def init_weights(net, init_type='normal', init_gain=0.02):
             init.normal_(m.weight.data, 1.0, init_gain)
             init.constant_(m.bias.data, 0.0)
 
-    print('initialize network with %s' % init_type)
     net.apply(init_func)  # apply the initialization function <init_func>
 
 
@@ -198,6 +197,10 @@ def define_D(input_nc, ndf, netD, n_layers_D=3, norm='batch', init_type='normal'
         raise NotImplementedError('Discriminator model name [%s] is not recognized' % net)
     return init_net(net, init_type, init_gain, gpu_ids)
 
+
+def define_E(input_nc, ndf, init_type='normal', init_gain=0.02, gpu_ids=[]):
+    netE = Encoder(input_nc, ndf)
+    return init_net(netE, init_type, init_gain, gpu_ids)
 
 ##############################################################################
 # Classes
@@ -621,7 +624,7 @@ class Zi2Zi_encoder(nn.Module):
         super(Zi2Zi_encoder, self).__init__()
         self.generator_dim = ngf
         self.layer_result = dict()
-        
+
         self.encoder = nn.Sequential(
             nn.Conv2d(input_nc, self.generator_dim, kernel_size = 4, stride = 2, padding = 1),
             self.encoder_layer(self.generator_dim, self.generator_dim * 2),
@@ -662,7 +665,7 @@ class Zi2Zi_decoder(nn.Module):
         s = 256
         self.generator_dim = ngf
         s2, s4, s8, s16, s32, s64, s128 = int(s / 2), int(s / 4), int(s / 8), int(s / 16), int(s / 32), int(s / 64), int(s / 128)
-        self.linear_layer = nn.Linear(640,512) # hardcode a vector with 512+128 to 512
+        self.linear_layer = nn.Linear(640, 512) # hardcode a vector with 512+128 to 512
         self.decoder = nn.Sequential(
             self.decoder_layer(s128, self.generator_dim * 8, self.generator_dim * 8),
             self.decoder_layer(s64, self.generator_dim * 16, self.generator_dim * 8),
@@ -690,17 +693,15 @@ class Zi2Zi_decoder(nn.Module):
 
 
     def forward(self, encoded_vector, enc_layer_results):
-        # print('decoder_forward')
         self.linear_layer(encoded_vector)
         dec = self.linear_layer(encoded_vector)
-        dec = dec[:,:,None,None]
+        dec = dec[:, :, None, None]
         i = 7
         for layer in self.decoder:
             dec = layer(dec)
             if i != 0:
                 dec = torch.cat((dec, enc_layer_results["e%d" % i]),1)
                 i = i-1
-        # print('decoder_finished')
         return torch.tanh(dec)
 
 
@@ -713,14 +714,12 @@ class Zi2Zi_generator(nn.Module):
         self.embedding_layer.weight.require_grad = False
 
     def forward(self, images, embedding_ids):
-        # print('generator_forward')
         e8, enc_layers = self.encoder.forward(images)
         local_embeddings = self.embedding_layer(embedding_ids)
         local_embeddings = local_embeddings[:, :, None, None] # HardCoding 2 new dimensions instead of view
         embedded = torch.cat((e8, local_embeddings), 1)
         embedded = embedded.view(embedded.size(0),-1)
         output = self.decoder.forward(embedded, enc_layers)
-        # print('generator_finished')
         return output
 
 def init_embedding(embedding_num, embedding_dim):
@@ -736,17 +735,15 @@ class Zi2ZiRandom_generator(nn.Module):
         self.decoder = Zi2Zi_decoder(output_nc, ngf=64)
         self.embedding_layer = init_embedding(2, 64)
         self.embedding_layer.weight.require_grad = False
-        
+
     def forward(self, images, embedding_ids, z):
-        # print('generator_forward')
         e8, enc_layers = self.encoder.forward(images)
         local_embeddings = self.embedding_layer(embedding_ids)
         local_embeddings = local_embeddings[:, :, None, None] # HardCoding 2 new dimensions instead of view
         embedded = torch.cat((e8, local_embeddings), 1)
-        embedded = embedded.view(embedded.size(0),-1)
+        embedded = embedded.view(embedded.size(0), -1)
         embedded = torch.cat((embedded, z), 1)
         output = self.decoder.forward(embedded, enc_layers)
-        # print('generator_finished')
         return output
 
 
