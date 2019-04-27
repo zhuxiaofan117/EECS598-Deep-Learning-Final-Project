@@ -2,7 +2,7 @@
 
 A course project of W19 EECS598-012 Deep Learning of Team 03
 
-The main framework of the structure is adapted from [Junyan Zhu]'s (https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix). We changed the original repo by fowllowing: added various loss metrics to pix2pix model, developed new models and created a new dataloader.
+The main framework of the structure is adapted from [Jun-yan Zhu]'s (https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix). We changed the original repo by fowllowing: added various loss metrics to pix2pix model, developed new models and created a new dataloader.
 
 ## Training and Testing commands
 
