@@ -549,7 +549,7 @@ class NLayerDiscriminator_new(nn.Module):
             n_layers (int)  -- the number of conv layers in the discriminator
             norm_layer      -- normalization layer
         """
-        super(NLayerDiscriminator, self).__init__()
+        super(NLayerDiscriminator_new, self).__init__()
         if type(norm_layer) == functools.partial:  # no need to use bias as BatchNorm2d has affine parameters
             use_bias = norm_layer.func != nn.BatchNorm2d
         else:

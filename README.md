@@ -2,7 +2,7 @@
 
 A course project of W19 EECS598-012 Deep Learning of Team 03
 
-The main framework of the structure is adapted from [Jun-yan Zhu]'s (https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix). We changed the original repo by fowllowing: added various loss metrics to pix2pix model, developed new models and created a new dataloader.
+The basic framework is adapted from [Jun-yan Zhu]'s (https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix). We changed the original repo by following: added various loss metrics to pix2pix model, developed new models and created a new dataloader.
 
 ## Training and Testing commands
 
@@ -18,7 +18,7 @@ $ python train.py --dataroot ./datasets/flower_paint/ --name pix2pix_L1 --model 
 
 --model: for name of the model
 
---direction: for meaning A is ground truth, B is sketch image
+--direction: for specificy training direction, BtoA means transforming from B to A, here A is ground truth, B is sketch image
 
 --display_id: for disabling visdom
 
@@ -27,7 +27,7 @@ $ python train.py --dataroot ./datasets/flower_paint/ --name pix2pix_L1 --model 
 ### To test the model, use the following command
 
 ```
-$ python test.py --dataroot ./datasets/flower_paint/ --name pix2pix_L1 --model pix2pix --direction BtoA --display_id 0
+$ python test.py --dataroot ./datasets/flower_paint/ --name pix2pix_L1 --model pix2pix --direction BtoA
 ```
 
 ## Models and Corresponding datasets
@@ -51,7 +51,7 @@ We explored following loss metrics
 --lambda_style: Style loss weight, default 0
 
 ### Image to image translation with category embeddings
-We developed a new model in Ske2Ink_model.py for multiple content dataset ./datasets/flower_mountain, which included a category embedding in the image vector. The training command is shown below:
+We developed a new model in Ske2Ink_model.py for mixed category content dataset ./datasets/flower_mountain, which included a category embedding in the image vector. The training command is shown below:
 
 ```
 $ python train.py --dataroot ./datasets/flower_mountain/ --name Ske2Ink --model Ske2Ink --direction BtoA --display_id 0 --lambda_category 10
