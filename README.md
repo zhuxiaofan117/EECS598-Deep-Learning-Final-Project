@@ -34,7 +34,7 @@ $ python test.py --dataroot ./datasets/flower_paint/ --name pix2pix_L1 --model p
 
 ### Original baseline and applying addtional losses on pix2pix model and flower_paint dataset
 
-Our baseline uses ./datasets/flower_paint dataset which contains only flower images. The following command shows training a model with L1 loss weigh 0 and L2 loss weight 50
+Our baseline uses ./datasets/flower_paint dataset which contains only flower images. The following command shows training a model with L1 loss weight 0 and L2 loss weight 50
 
 ```
 $ python train.py --dataroot ./datasets/flower_paint/ --name pix2pix_L2 --model pix2pix --direction BtoA --display_id 0 --lambda_L1 0 --lambda_L2 50
@@ -61,7 +61,7 @@ $ python train.py --dataroot ./datasets/flower_mountain/ --name Ske2Ink --model 
 --lambda_category: weight for category loss
 
 ### Diverse Image to image translation with category embeddings
-We modified the previous model by adding an random embedding vector to create a new one in Ske2InkRandom_model.py for multiple content dataset ./datasets/flower_mountain. The training command is shown below:
+We modified the previous model by adding an random embedding vector to create a new one in Ske2InkRandom_model.py for mixed category dataset ./datasets/flower_mountain. The training command is shown below:
 
 ```
 $ python train.py --dataroot ./datasets/flower_mountain/ --name Ske2Ink_Random --model Ske2InkRandom --direction BtoA --display_id 0 --lambda_category 10 --lambda_random 1

@@ -29,7 +29,7 @@ class Ske2InkRandomModel(BaseModel):
         By default, we use vanilla GAN loss, UNet with batchnorm, and aligned datasets.
         """
         # changing the default values to match the pix2pix paper (https://phillipi.github.io/pix2pix/)
-        parser.set_defaults(norm='batch', netG='unet_Ske2Ink_random', dataset_mode='alignedlabel')
+        parser.set_defaults(norm='batch', netG='unet_Ske2Ink_random', dataset_mode='alignedlabel', , netD='new_basic')
         if is_train:
             parser.set_defaults(pool_size=0, gan_mode='vanilla')
             parser.add_argument('--lambda_L1', type=float, default=100.0, help='weight for L1 loss')
