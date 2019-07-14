@@ -1,6 +1,6 @@
 # Generating Chinese Ancient Ink Painting from Sketch Using Conditional GANs
 
-A course project of W19 EECS598-012 Deep Learning of Team 03
+A course project of W19 EECS598-012 Deep Learning of Team 03  [Here's our report](https://drive.google.com/file/d/1rpGErAWi0GgBxuw37ZE9ctl_YcbnH6ZE/view?usp=sharing)
 
 The basic framework is adapted from [Jun-yan Zhu]'s (https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix). We changed the original repo by following: added various loss metrics to pix2pix model, developed new models and created a new dataloader.
 
